@@ -219,32 +219,28 @@ class Game:
                         print("Move not found")
                 
             elif player_to_move == self.COMPUTER:
-                """
-                break_first_move = False
-                if board.move_count == 1:
-                    for tmp_move in available_moves:
-                        if tmp_move.get_notation(available_moves) == "d4":
-                            self.make_move_on_board(tmp_move)
-                            break_first_move = True
-                if break_first_move is True:
-                    continue
-                """
-
                 start = time.process_time()
                 #board.iterations = {}
                 board.eval_pos = {"calcul": 0, "load": 0}
                 board.calc_av_moves = {"calcul": 0, "load": 0}
                 board.time_spent = {}
                 #tmp_len_eval = len(board.saved_evaluations)
-                bestscore, board_move = board.alpha_beta(4)
+                if len(available_moves) == 1:
+                    bestscore, board_move = 0, available_moves[0]
+                else:
+                    bestscore, board_move = board.alpha_beta(2)
+
                 end = time.process_time()
 
+                """
+                # DEBUG tools for board evaluation
                 for func, val in board.time_spent.items():
                     print(Back.BLUE + func + " : " + str(val['count']) + " -- " + str(round(val['time'], 3)) + " sec" + Back.RESET)
                 #print(board.iterations)
                 print(board.eval_pos)
                 print(board.calc_av_moves)
                 #print(tmp_len_eval, " => ", len(board.saved_evaluations))
+                """
 
                 self.make_move_on_board(board_move)
                 print("==== COMPUTER MOVES : " + Back.LIGHTCYAN_EX + " " + board_move.get_notation(available_moves) + " " + Back.RESET + " (" + str(bestscore) + ") -- (" + str(round(end-start, 3)) + " seconds)")
@@ -573,7 +569,7 @@ class Board:
         self.iterations[depth] += 1
         """
         if depth == initial_depth:
-            max_time = 180
+            max_time = 120
             start = time.process_time()
         """
         Returns a tuple (score, bestmove) for the position at the given depth
@@ -1252,15 +1248,24 @@ class Board:
     
     def sort_moves(self, move:Move):
         weight = 0
-        if move.get_capture() is not None:
-            piece_type = move.get_piece() & Piece.TYPE_MASK
-            capture_piece_type = move.get_capture() & Piece.TYPE_MASK
-            weight += 5*Piece.EVALUATION_PIECES[capture_piece_type]/(2*Piece.EVALUATION_PIECES[piece_type]+1)
-        if move.get_promotion() is not None:
-            piece_type = move.get_promotion() & Piece.TYPE_MASK
-            weight += Piece.EVALUATION_PIECES[piece_type] + 0.2
-        if Piece.is_piece(move.get_piece(), Piece.PAWN):
-            weight -= 0.1
+        origin_square_num = move.get_origin_square_num()
+        destination_square_num = move.get_destination_square_num()
+        if Piece.is_piece(move.get_piece(), Piece.KING) and (origin_square_num == destination_square_num+2 or origin_square_num == destination_square_num-2):
+            # bonus weight for castle
+            weight += 5
+        else:
+            if move.get_capture() is not None:
+                # capture depending on capturing & captured piece
+                piece_type = move.get_piece() & Piece.TYPE_MASK
+                capture_piece_type = move.get_capture() & Piece.TYPE_MASK
+                weight += 5*Piece.EVALUATION_PIECES[capture_piece_type]/(2*Piece.EVALUATION_PIECES[piece_type]+1)
+            if move.get_promotion() is not None:
+                # promotion depending on piece
+                piece_type = move.get_promotion() & Piece.TYPE_MASK
+                weight += Piece.EVALUATION_PIECES[piece_type] + 0.2
+            if Piece.is_piece(move.get_piece(), Piece.PAWN):
+                # sort other pawn moves after regular piece moves
+                weight -= 0.1
         # TODO if move is check : +10
         return weight
 
